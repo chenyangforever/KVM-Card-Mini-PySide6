@@ -41,6 +41,51 @@ shift_symbol = [
     "+","{","}","|",":",'"',
     "<",">","?",
 ]  # fmt: skip
+
+# Linux Qt/XKB nativeScanCode compatibility
+#
+# On Linux/XKB, Qt commonly reports native scan codes as:
+#     XKB keycode = Linux evdev keycode + 8
+#
+# The existing keyboard_scancode2hid mapping expects PC/Windows
+# Set-1 style scan codes, so translate Linux scan codes first.
+LINUX_EVDEV_TO_SET1 = {
+    96:  0x011C,  # Keypad Enter
+    97:  0x011D,  # Right Ctrl
+    98:  0x0135,  # Keypad /
+    99:  0x0137,  # Print Screen
+    100: 0x0138,  # Right Alt
+    102: 0x0147,  # Home
+    103: 0x0148,  # Up
+    104: 0x0149,  # Page Up
+    105: 0x014B,  # Left
+    106: 0x014D,  # Right
+    107: 0x014F,  # End
+    108: 0x0150,  # Down
+    109: 0x0151,  # Page Down
+    110: 0x0152,  # Insert
+    111: 0x0153,  # Delete
+    125: 0x015B,  # Left Super
+    126: 0x015C,  # Right Super
+    139: 0x015D,  # Menu
+}
+
+
+def normalize_native_scancode(scancode: int) -> int:
+    """Translate Linux Qt/XKB scan codes to the scan-code format
+    expected by the existing HID keyboard mapping.
+    """
+    if not sys.platform.startswith("linux"):
+        return scancode
+
+    evdev_code = scancode - 8
+
+    if evdev_code < 0:
+        return scancode
+
+    return LINUX_EVDEV_TO_SET1.get(evdev_code, evdev_code)
+
+
 PATH = os.path.dirname(os.path.abspath(__file__))
 ARGV_PATH = os.path.dirname(os.path.abspath(sys.argv[0]))
 
@@ -2301,7 +2346,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
         if kb_buffer[2] == 7 and event.key() == self.fullscreen_key:
             self.fullscreen_func()
             return
-        self.keyPress(event.nativeScanCode())
+        self.keyPress(normalize_native_scancode(event.nativeScanCode()))
 
     def keyPress(self, scancode: int):
         # Ctrl+Alt+Shift+V quick paste
@@ -2333,7 +2378,7 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if self.ignore_event:
             return
-        self.keyRelease(event.nativeScanCode())
+        self.keyRelease(normalize_native_scancode(event.nativeScanCode()))
 
     def keyRelease(self, scancode: int):
         self.update_kb(scancode, False)
