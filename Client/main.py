@@ -2654,7 +2654,7 @@ def clear_splash():
 
 def main():
     argv = sys.argv
-    if dark_theme:
+    if dark_theme and sys.platform.startswith("win"):
         argv += [
             "-platform",
             "windows:darkmode=2",
@@ -2671,14 +2671,21 @@ def main():
         if translator2.load(os.path.join(PATH, "resources", "qtbase_cn.qm")):
             app.installTranslator(translator2)
     myWin = MyMainWindow()
-    qdarktheme.setup_theme(
-        theme="dark" if dark_theme else "light",
-        custom_colors={
-            "[dark]": {
-                "background>base": "#1f2021",
-            }
-        },
-    )
+    theme_name = "dark" if dark_theme else "light"
+
+    if hasattr(qdarktheme, "setup_theme"):
+        qdarktheme.setup_theme(
+            theme=theme_name,
+            custom_colors={
+                "[dark]": {
+                    "background>base": "#1f2021",
+                }
+            },
+        )
+    else:
+        # Compatibility with old PyQtDarkTheme on Python 3.12
+        app.setStyleSheet(qdarktheme.load_stylesheet(theme_name))
+
     myWin.show()
     QTimer.singleShot(100, myWin.shortcut_status)
     clear_splash()

@@ -29,26 +29,28 @@ def init_usb(vendor_id, usage_page):
     if DEBUG:
         logger.debug(f"init_usb(vendor_id={vendor_id}, usage_page={usage_page})")
         return 0
+
     global h
+
+    try:
+        h.close()
+    except Exception:
+        pass
+
     h = hid.device()
-    # h.close()
-    hid_enumerate = hid.enumerate()
-    device_path = 0
-    for i in range(len(hid_enumerate)):
-        # if (hid_enumerate[i]['usage_page'] == usage_page and hid_enumerate[i]['vendor_id'] == vendor_id):
-        if (
-            hid_enumerate[i]["usage_page"] == usage_page
-            and hid_enumerate[i]["vendor_id"] == vendor_id
-            and hid_enumerate[i]["product_id"] == product_id
-        ):
-            device_path = hid_enumerate[i]["path"]
-            # print("Found target devicd:", hid_enumerate[i])
-    if device_path == 0:
-        logger.error("Device not found")
+
+    try:
+        # Linux hidapi/libusb may report usage_page as 0,
+        # so identify KVM Card Mini directly by VID/PID.
+        h.open(vendor_id, product_id)
+        h.set_nonblocking(1)
+        logger.info(
+            f"KVM Card Mini opened: {vendor_id:04x}:{product_id:04x}"
+        )
+        return 0
+    except OSError as e:
+        logger.error(f"Device open failed: {e}")
         return 1
-    h.open_path(device_path)
-    h.set_nonblocking(1)  # enable non-blocking mode
-    return 0
 
 
 def check_connection() -> bool:
