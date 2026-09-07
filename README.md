@@ -102,7 +102,7 @@ Q W E R T
 
 Ubuntu 修复已经提交给 ElluIFX 上游：
 
-**[ElluIFX/KVM-Card-Mini-PySide6#12](https://github.com/ElluIFX/KVM-Card-Mini-PySide6/pull/12)**
+**https://github.com/ElluIFX/KVM-Card-Mini-PySide6/pull/12**
 
 当前等待上游维护者处理。
 
@@ -236,6 +236,38 @@ QTimer.singleShot(...)
 
 现在可以正常使用“启动时自动连接”。
 
+#### macOS 高分辨率鼠标滚轮
+
+Intel macOS 下，Qt 的 `QWheelEvent.angleDelta().y()` 并不总是传统鼠标常见的 `+120/-120`。
+
+实机测试中可以出现：
+
+```text
+±24
+±26
+±70
+±206
+±410
+±822
+```
+
+原程序仅在滚轮值严格等于 `+120/-120` 时发送 HID 滚轮事件，因此在 macOS 高分辨率鼠标环境下，轻微滚动或单格滚动可能没有反应。
+
+当前版本已经修改为：
+
+- 任意非零滚轮事件至少转换为 1 个 HID wheel step；
+- 较大的 delta 按比例转换为多个 wheel step；
+- 保留快速滚动时的速度差异。
+
+已实机验证：
+
+```text
+单格滚动      OK
+慢速连续滚动  OK
+快速滚动      OK
+向上/向下滚动 OK
+```
+
 ### 已验证
 
 Intel macOS 实机测试：
@@ -245,7 +277,8 @@ CH582F HID 控制           OK
 MacroSilicon MS2109 视频  OK
 1920x1080 @ 30 fps        OK
 Mac 实体键盘              OK
-鼠标                      OK
+鼠标移动/点击             OK
+高分辨率鼠标滚轮          OK
 启动自动连接              OK
 正常退出                  OK
 Nuitka .app               OK
@@ -281,10 +314,8 @@ fix/ubuntu-linux-client
 upstream cross-platform
         │
         ├── Ubuntu compatibility fix
-        │
         ├── Ubuntu keyboard fix
-        │
-        └── macOS compatibility fix
+        └── macOS compatibility fixes
 ```
 
 因此暂时没有直接向上游提交 macOS Pull Request，以避免 macOS PR 重复包含 Ubuntu PR 的修改。
