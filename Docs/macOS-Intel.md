@@ -198,6 +198,47 @@ QTimer.singleShot(...)
 
 ---
 
+### 2.6 macOS 高分辨率鼠标滚轮
+
+Intel macOS 实测中，Qt 的 `QWheelEvent.angleDelta().y()` 并不总是按照传统鼠标每格返回 `+120/-120`。
+
+实际测试中可以出现：
+
+```text
+±24
+±26
+±70
+±206
+±410
+±822
+```
+
+原程序仅判断：
+
+```python
+event.angleDelta().y() == 120
+event.angleDelta().y() == -120
+```
+
+因此在 macOS 高分辨率鼠标环境下，大量较小的滚轮事件会被忽略，表现为轻微滚动或单格滚动没有反应。
+
+当前版本已经修改为：
+
+- 任意非零滚轮事件至少转换为 1 个 HID wheel step；
+- 较大的 delta 按比例转换为多个 wheel step；
+- 保留快速滚动时的速度差异。
+
+已经实机验证：
+
+```text
+单格滚动      OK
+慢速连续滚动  OK
+快速滚动      OK
+向上/向下滚动 OK
+```
+
+---
+
 ## 3. 从 GitHub 重新恢复源码
 
 新机器或重装系统后：
@@ -604,7 +645,8 @@ CH582F HID 控制           OK
 MacroSilicon MS2109 视频  OK
 1920x1080 @ 30 fps        OK
 Mac 实体键盘              OK
-鼠标                      OK
+鼠标移动/点击             OK
+高分辨率鼠标滚轮          OK
 启动自动连接              OK
 正常退出                  OK
 Nuitka .app               OK
