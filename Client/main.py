@@ -2231,22 +2231,40 @@ class MyMainWindow(QMainWindow, main_ui.Ui_MainWindow):
             return
         if not self.status["mouse_capture"]:
             return
+
         if not self.status["relative_mouse"]:
             buffer = mouse_buffer
             bit = 7
         else:
             buffer = mouse_buffer_rel
             bit = 5
-        if event.angleDelta().y() == 120:
-            buffer[bit] = 0x01
-        elif event.angleDelta().y() == -120:
-            buffer[bit] = 0xFF
-        else:
-            buffer[bit] = 0
-        self._hid_signal.emit(buffer)
+
+        delta = event.angleDelta().y()
+        if delta == 0:
+            return
+
+        # macOS/high-resolution mice may report much smaller values
+        # than the traditional +/-120 wheel delta.
+        #
+        # Treat every non-zero wheel event as at least one HID step,
+        # while preserving faster scrolling for larger deltas.
+        magnitude = abs(delta)
+        steps = max(1, (magnitude + 60) // 120)
+
+        wheel_value = 0x01 if delta > 0 else 0xFF
+
+        for _ in range(steps):
+            buffer[bit] = wheel_value
+            self._hid_signal.emit(buffer.copy())
+
+        # Wheel movement is relative and must not remain pressed.
+        buffer[bit] = 0
+
         if self.mouse_scroll_timer.isActive():
             self.mouse_scroll_timer.stop()
         self.mouse_scroll_timer.start(100)
+
+        event.accept()
 
     def mouse_scroll_stop(self):
         self.mouse_scroll_timer.stop()
